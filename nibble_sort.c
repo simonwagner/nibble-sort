@@ -23,7 +23,7 @@ if the nibble is NIBBLE), then do popcnt
   } \
 
 #define NIBBLE_COUNT(n) __m128i count_ ## n  = popcnt_epi64(bitset_ ## n);
-#define NIBBLE_COUNT_COMPRESSED(n) count = count | (popcnt_epi64(bitset_ ## n) << ((n)*5))
+
 #define SORTED_NIBBLE_FUNC(output, nibble, index, sorted_nibble) \
   { \
     unsigned long nibble_mask = NIBBLE_MASK(nibble); \
@@ -37,20 +37,9 @@ if the nibble is NIBBLE), then do popcnt
 
 //per default, use sorted_nibble
 #define SORTED_NIBBLE(output, nibble, index) SORTED_NIBBLE_FUNC(output, nibble, index, sorted_nibble)
-//for the last ones (who would result in undefined behaviour because we might have an overflow)
-#define SORTED_NIBBLE_END(output, nibble, index) SORTED_NIBBLE_FUNC(output, nibble, index, sorted_nibble_end)
 
 inline static __m128i zero_bitset(const __m128i input) {
-  /*static const __m128i ones = EXPAND_HEXNIBBLE_128(1);
-  static const __m128i eights = EXPAND_HEXNIBBLE_128(8);
-  __m128i highbit_set = _mm_sub_epi64(input, ones);
-  __m128i combinedset = _mm_andnot_si128(input, highbit_set);
-  __m128i clearedset = _mm_and_si128(combinedset, eights);
-
-  return clearedset;*/
-
-  //johannes' version
-  // ((mask - (input & ~mask)) & ~input & mask)
+  //by Johannes
   static const __m128i mask = EXPAND_HEXNIBBLE_128(8);
   __m128i input_and_not_mask = _mm_andnot_si128(mask, input);
   __m128i not_input_and_mask = _mm_andnot_si128(input, mask);
@@ -349,7 +338,6 @@ extern void simons_nibble_sort_loop(unsigned long *buf) {
 
       __m128i count  = popcnt_epi64(bitset);
       unsigned long nibble_mask = NIBBLE_MASKS[nibble];
-      //sorted_qwords |= sorted_nibble_si128(xor_mask, index, count);
       __m128i sorted_nibble_mask = {
         sorted_nibble(xor_mask[0], index[0], count[0]),
         sorted_nibble(xor_mask[1], index[1], count[1])
@@ -362,15 +350,3 @@ extern void simons_nibble_sort_loop(unsigned long *buf) {
     buf[i+1] = sorted_qwords[1];
   }
 }
-
-#ifdef TEST
-
-/*#include <stdio.h>
-
-int main(int argc, char** argv) {
-  __m128i test = {0b01101, 0b1110110};
-  __m128i popcnt = popcnt_epi64(test);
-
-  printf("popcnt: %lld/%lld\n", popcnt[0], popcnt[1]);
-}*/
-#endif
